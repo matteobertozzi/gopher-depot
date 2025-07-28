@@ -148,16 +148,16 @@ func (s *SqliteStorage) Exec(sql string, args ...any) (sql.Result, error) {
 	return s.db.Exec(sql, args...)
 }
 
-func (s *SqliteStorage) Query(sql string, args ...any) (*sql.Rows, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *SqliteStorage) Query(sql string, args ...any) (SqlRowsScanner, error) {
+	//s.mu.Lock()
+	//defer s.mu.Unlock()
 
 	return s.db.Query(sql, args...)
 }
 
-func (s *SqliteStorage) QueryRow(sql string, args ...any) *sql.Row {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *SqliteStorage) QueryRow(sql string, args ...any) SqlScanner {
+	//s.mu.Lock()
+	//defer s.mu.Unlock()
 
 	return s.db.QueryRow(sql, args...)
 }

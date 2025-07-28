@@ -21,6 +21,14 @@ import (
 	"database/sql"
 )
 
+type SqlRowsScanner interface {
+	Close() error
+	Next() bool
+	Err() error
+	Scan(dest ...any) error
+	Columns() ([]string, error)
+}
+
 func sqlAllocReadValues(numFields int) []any {
 	values := make([]any, numFields)
 	for i := range values {
@@ -42,7 +50,7 @@ func sqlRowToMap(values []any, numFields int, fields []string) map[string]any {
 	return rowMap
 }
 
-func SqlFetchRowsToMaps(rows *sql.Rows) ([]map[string]any, error) {
+func SqlFetchRowsToMaps(rows SqlRowsScanner) ([]map[string]any, error) {
 	defer rows.Close()
 
 	fields, err := rows.Columns()
@@ -69,7 +77,7 @@ func SqlFetchRowsToMaps(rows *sql.Rows) ([]map[string]any, error) {
 	return results, nil
 }
 
-func SqlFetchSingleRowToMap(rows *sql.Rows) (map[string]any, error) {
+func SqlFetchSingleRowToMap(rows SqlRowsScanner) (map[string]any, error) {
 	defer rows.Close()
 
 	fields, err := rows.Columns()
@@ -145,7 +153,7 @@ func (rows *SqlFlatRows) LastRowFieldUint64Value(fieldName string) uint64 {
 	return 0
 }
 
-func SqlFetchRowsToFlatMapWithRsFields(rows *sql.Rows) (*SqlFlatRows, error) {
+func SqlFetchRowsToFlatMapWithRsFields(rows SqlRowsScanner) (*SqlFlatRows, error) {
 	defer rows.Close()
 
 	fields, err := rows.Columns()
@@ -155,7 +163,7 @@ func SqlFetchRowsToFlatMapWithRsFields(rows *sql.Rows) (*SqlFlatRows, error) {
 	return SqlFetchRowsFlatMap(rows, fields)
 }
 
-func SqlFetchRowsFlatMap(rows *sql.Rows, fields []string) (*SqlFlatRows, error) {
+func SqlFetchRowsFlatMap(rows SqlRowsScanner, fields []string) (*SqlFlatRows, error) {
 	defer rows.Close()
 
 	numFields := len(fields)
