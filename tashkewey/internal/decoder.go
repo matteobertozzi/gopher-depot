@@ -25,12 +25,27 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fxamacker/cbor"
 	"github.com/klauspost/compress/zstd"
+	"github.com/matteobertozzi/gopher-depot/insights/metrics"
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 	"github.com/matteobertozzi/yajbe-data-format/golang/yajbe"
 	"gopkg.in/yaml.v3"
 )
+
+var httpReqBodySize = metrics.RegisterMetric[*metrics.MaxAndAvgTimeRangeGauge](metrics.Metric{
+	Unit:      "BYTES",
+	Name:      "http.request.body.size",
+	Collector: metrics.NewMaxAndAvgTimeRangeGauge(3*time.Hour, 1*time.Minute),
+})
+
+var httpTopReqBodySize = metrics.RegisterMetric[*metrics.TopKTable](metrics.Metric{
+	Unit:      "BYTES",
+	Name:      "http.top.request.body.size",
+	Collector: metrics.NewTopKTable(16, 5, 60*time.Minute),
+})
 
 func ParseContentType(fullContentType string) (string, string) {
 	fullContentType = strings.TrimSpace(fullContentType)
@@ -39,7 +54,7 @@ func ParseContentType(fullContentType string) (string, string) {
 		return "application/json", ""
 	}
 
-	paramIndex := strings.IndexByte(fullContentType, ',')
+	paramIndex := strings.IndexByte(fullContentType, ';')
 	if paramIndex < 0 {
 		return fullContentType, ""
 	}
@@ -87,6 +102,7 @@ func DecodeBody[TBody any](contentEncoding string, contentType string, body io.R
 	case "text/yaml", "application/yaml":
 		return yaml.NewDecoder(reader).Decode(bodyObj)
 	}
+
 	return fmt.Errorf("unsupported content-type %s", contentType)
 }
 
@@ -97,6 +113,10 @@ func DecodeRequestBody[TReq any](r *http.Request, body *TReq) error {
 
 	contentEncoding := r.Header.Get("Content-Encoding")
 	contentType, _ := ParseContentType(r.Header.Get("Content-Type"))
+
+	httpReqBodySize.Sample(time.Now(), int64(r.ContentLength))
+	httpTopReqBodySize.AddEvent(time.Now(), fmt.Sprintf("%s %s (%s %s)", r.Method, r.URL.Path, contentEncoding, contentType), r.ContentLength, tracer.GetTraceId(r.Context()))
+
 	return DecodeBody(contentEncoding, contentType, r.Body, body)
 }
 

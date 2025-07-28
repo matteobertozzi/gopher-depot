@@ -86,8 +86,8 @@ func TracingMiddleware(next http.Handler) http.Handler {
 		tracer.LogTrace(ctx, "{http.status} {http.method} {http.path} {ip.addr} {duration.ns}",
 			ww.statusCode, r.Method, r.URL.Path, clientIp, execNs)
 
-		httpTop.AddEvent(r.Method+" "+r.URL.Path, execNs, traceId, endTime)
-		httpTopIps.AddEvent(clientIp, execNs, traceId, endTime)
+		httpTop.AddEvent(endTime, r.Method+" "+r.URL.Path, execNs, traceId)
+		httpTopIps.AddEvent(endTime, clientIp, execNs, traceId)
 		httpExecTimes.Sample(endTime, execNs)
 		if ww.statusCode >= 500 && ww.statusCode < 600 {
 			http5xx.Inc(endTime)

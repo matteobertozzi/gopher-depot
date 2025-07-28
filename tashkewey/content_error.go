@@ -24,6 +24,7 @@ import (
 	"os"
 
 	"github.com/matteobertozzi/gopher-depot/insights/tracer"
+	"github.com/matteobertozzi/gopher-depot/tashkewey/internal"
 )
 
 type HttpErrorMessage struct {
@@ -118,7 +119,7 @@ func WriteErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 
 	tracer.LogError(r.Context(), err, "Request {http.method} {http.path} failed with {http.status} {error.status}",
 		r.Method, r.URL.Path, httpErr.StatusCode, httpErr.Status)
-	contentEncoding, contentType, bodyEnc, err := encodeResponseBody(r, httpErr)
+	contentEncoding, contentType, bodyEnc, err := internal.EncodeResponseBody(r, httpErr)
 	if err != nil {
 		// unable to serialize error response
 		tracer.LogError(r.Context(), err, "Unable to serialize error response", httpErr.Status, httpErr.Message)

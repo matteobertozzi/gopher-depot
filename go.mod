@@ -10,6 +10,7 @@ require (
 	github.com/marcboeker/go-duckdb/v2 v2.3.3
 	github.com/matteobertozzi/yajbe-data-format/golang/yajbe v0.0.0-20250721043047-3bae6a16503f
 	github.com/mattn/go-sqlite3 v1.14.28
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

@@ -86,7 +86,7 @@ func NewTopKTable(k, traceK int, windowSize time.Duration) *TopKTable {
 	if windowSize <= 0 {
 		windowSize = time.Minute
 	}
-	
+
 	return &TopKTable{
 		entries:      make(map[string]*Entry),
 		events:       make([]Event, 0),
@@ -98,7 +98,7 @@ func NewTopKTable(k, traceK int, windowSize time.Duration) *TopKTable {
 	}
 }
 
-func (t *TopKTable) AddEvent(key string, value int64, traceID string, timestamp time.Time) {
+func (t *TopKTable) AddEvent(timestamp time.Time, key string, value int64, traceID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -182,7 +182,7 @@ func (t *TopKTable) updateEntry(event Event) {
 func (t *TopKTable) updateTopKTraceIDs(entry *Entry) {
 	// Build map of trace values for this key
 	traceValues := make(map[string]int64)
-	
+
 	// Collect all trace values for this key
 	for _, event := range t.events {
 		if event.Key == entry.Key {
@@ -191,34 +191,34 @@ func (t *TopKTable) updateTopKTraceIDs(entry *Entry) {
 			}
 		}
 	}
-	
+
 	// Convert to slice for sorting
 	type traceItem struct {
 		TraceID string
 		Value   int64
 	}
-	
+
 	traces := make([]traceItem, 0, len(traceValues))
 	for tid, val := range traceValues {
 		traces = append(traces, traceItem{TraceID: tid, Value: val})
 	}
-	
+
 	// Sort by value descending
 	sort.Slice(traces, func(i, j int) bool {
 		return traces[i].Value > traces[j].Value
 	})
-	
+
 	// Keep only top-k
 	if len(traces) > t.traceK {
 		traces = traces[:t.traceK]
 	}
-	
+
 	// Extract trace IDs
 	result := make([]string, len(traces))
 	for i, trace := range traces {
 		result[i] = trace.TraceID
 	}
-	
+
 	entry.TraceIDs = result
 }
 
@@ -274,13 +274,13 @@ func NewTopKTableFromData(data TopKTableData) *TopKTable {
 	if len(data.Entries) == 0 {
 		return nil
 	}
-	
+
 	t := &TopKTable{
-		entries: make(map[string]*Entry, len(data.Entries)),
-		k:       len(data.Entries), // Default k to number of entries
-		traceK:  5,                 // Default traceK
-		windowSize: time.Hour,      // Default window
-		lastCleanup: time.Now(),
+		entries:      make(map[string]*Entry, len(data.Entries)),
+		k:            len(data.Entries), // Default k to number of entries
+		traceK:       5,                 // Default traceK
+		windowSize:   time.Hour,         // Default window
+		lastCleanup:  time.Now(),
 		cleanupEvery: time.Minute,
 	}
 

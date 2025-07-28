@@ -18,76 +18,12 @@
 package tashkewey
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/json"
-	"io"
 	"net/http"
 	"reflect"
 	"time"
 
-	"github.com/fxamacker/cbor/v2"
-	"github.com/klauspost/compress/zstd"
 	"github.com/matteobertozzi/gopher-depot/tashkewey/internal"
-	"github.com/matteobertozzi/yajbe-data-format/golang/yajbe"
-	"gopkg.in/yaml.v3"
 )
-
-type Encoder interface {
-	Encode(v any) error
-}
-
-type CompressedWriter interface {
-	Close() error
-	Flush() error
-}
-
-func encodeResponseBody(r *http.Request, body any) (string, string, []byte, error) {
-	var buf bytes.Buffer
-	var writer io.Writer = &buf
-
-	contentEncoding := internal.ParseAcceptEncodingHeader(r.Header.Get("Accept-Encoding"))
-	if contentEncoding != "" {
-		switch contentEncoding {
-		case "gzip":
-			gzw := gzip.NewWriter(writer)
-			defer gzw.Close()
-			writer = gzw
-		case "zstd":
-			zstdw, err := zstd.NewWriter(writer)
-			if err == nil {
-				defer zstdw.Close()
-				contentEncoding = ""
-				writer = zstdw
-			}
-		}
-	}
-
-	var encoder Encoder
-	contentType := internal.ParseAcceptHeader(r.Header.Get("accept"))
-	switch contentType {
-	case "application/cbor":
-		encoder = cbor.NewEncoder(writer)
-	case "application/yajbe":
-		encoder = yajbe.NewEncoder(writer)
-	case "text/yaml":
-		encoder = yaml.NewEncoder(writer)
-	default:
-		encoder = json.NewEncoder(writer)
-	}
-
-	err := encoder.Encode(body)
-	if err != nil {
-		return contentEncoding, contentType, nil, err
-	}
-
-	if cw, ok := writer.(CompressedWriter); ok {
-		cw.Flush()
-		cw.Close()
-	}
-
-	return contentEncoding, contentType, buf.Bytes(), err
-}
 
 func WriteResponseBody(w http.ResponseWriter, r *http.Request, resp any) {
 	if resp == nil || reflect.ValueOf(resp).IsNil() {
@@ -95,7 +31,7 @@ func WriteResponseBody(w http.ResponseWriter, r *http.Request, resp any) {
 		return
 	}
 
-	contentEncoding, contentType, bodyEnc, err := encodeResponseBody(r, resp)
+	contentEncoding, contentType, bodyEnc, err := internal.EncodeResponseBody(r, resp)
 	if err != nil {
 		WriteErrorResponse(w, r, err)
 		return
