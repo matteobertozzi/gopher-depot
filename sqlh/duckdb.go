@@ -306,6 +306,10 @@ func (w *DuckDbWriter) Close() error {
 	return w.db.Close()
 }
 
+func (w *DuckDbWriter) Begin() (*sql.Tx, error) {
+	return w.db.Begin()
+}
+
 func (w *DuckDbWriter) Exec(query string, args ...any) (sql.Result, error) {
 	return w.db.Exec(query, args...)
 }
