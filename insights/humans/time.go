@@ -21,7 +21,12 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 )
+
+func Duration(duration time.Duration) string {
+	return TimeNanos(float64(duration.Nanoseconds()))
+}
 
 func TimeNanos(nanos float64) string {
 	if nanos < 1000 {
