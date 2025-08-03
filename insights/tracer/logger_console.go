@@ -34,11 +34,11 @@ import (
 
 // Color constants to avoid string concatenation
 const (
-	colorReset  = "\x1b[0m"
-	colorYellow = "\x1b[33m"
-	colorRed    = "\x1b[31m"
+	colorReset   = "\x1b[0m"
+	colorYellow  = "\x1b[33m"
+	colorRed     = "\x1b[31m"
 	colorMagenta = "\x1b[35m"
-	colorCyan   = "\x1b[36m"
+	colorCyan    = "\x1b[36m"
 )
 
 var (
@@ -123,11 +123,11 @@ func HumanMeasurementValue(name string, value float64) string {
 		case "sec":
 			return humans.TimeSeconds(value)
 		case "bytes":
-			return humans.Bytes(value)
+			return humans.Bytes(uint64(value))
 		case "count":
 			return humans.Count(value)
 		case "bits":
-			return humans.Bits(value)
+			return humans.Bits(uint64(value))
 		case "epoch":
 			return time.Unix(int64(value), 0).Format("2006-01-02 15:04:05")
 		}

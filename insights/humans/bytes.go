@@ -19,46 +19,45 @@ package humans
 
 import (
 	"fmt"
-	"math"
 )
 
-func Bits(bits float64) string {
+func Bits(bits uint64) string {
 	if bits >= 1000_000_000_000_000 {
-		return fmt.Sprintf("%.0fPbit", bits/1000_000_000_000_000)
+		return fmt.Sprintf("%.0fPbit", float64(bits)/1000_000_000_000_000)
 	}
 	if bits >= 1000_000_000_000 {
-		return fmt.Sprintf("%.0fTbit", bits/1000_000_000_000)
+		return fmt.Sprintf("%.0fTbit", float64(bits)/1000_000_000_000)
 	}
 	if bits >= 1000_000_000 {
-		return fmt.Sprintf("%.0fGbit", bits/1000_000_000)
+		return fmt.Sprintf("%.0fGbit", float64(bits)/1000_000_000)
 	}
 	if bits >= 1000_000 {
-		return fmt.Sprintf("%.0fMbit", bits/1000_000)
+		return fmt.Sprintf("%.0fMbit", float64(bits)/1000_000)
 	}
 	if bits >= 1000 {
-		return fmt.Sprintf("%.0fKbit", bits/1000)
+		return fmt.Sprintf("%.0fKbit", float64(bits)/1000)
 	}
-	return fmt.Sprintf("%.0fbit", bits)
+	return fmt.Sprintf("%dbit", bits)
 }
 
-func Bytes(bytes float64) string {
+func Bytes(bytes uint64) string {
 	if bytes >= 1125899906842624 {
-		return fmt.Sprintf("%.2fPiB", bytes/1125899906842624)
+		return fmt.Sprintf("%.2fPiB", float64(bytes)/1125899906842624)
 	}
 	if bytes >= 1099511627776 {
-		return fmt.Sprintf("%.2fTiB", bytes/1099511627776)
+		return fmt.Sprintf("%.2fTiB", float64(bytes)/1099511627776)
 	}
 	if bytes >= 1073741824 {
-		return fmt.Sprintf("%.2fGiB", bytes/1073741824)
+		return fmt.Sprintf("%.2fGiB", float64(bytes)/1073741824)
 	}
 	if bytes >= 1048576 {
-		return fmt.Sprintf("%.2fMiB", bytes/1048576)
+		return fmt.Sprintf("%.2fMiB", float64(bytes)/1048576)
 	}
 	if bytes >= 1024 {
-		return fmt.Sprintf("%.2fKiB", bytes/1024)
+		return fmt.Sprintf("%.2fKiB", float64(bytes)/1024)
 	}
 	if bytes > 1 {
-		return fmt.Sprintf("%.0fbytes", math.Round(bytes))
+		return fmt.Sprintf("%dbytes", bytes)
 	}
-	return fmt.Sprintf("%.0fbyte", bytes)
+	return "0byte"
 }
