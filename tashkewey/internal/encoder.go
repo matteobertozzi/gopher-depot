@@ -68,9 +68,10 @@ func EncodeResponseBody(r *http.Request, body any) (string, string, []byte, erro
 			writer = gzw
 		case "zstd":
 			zstdw, err := zstd.NewWriter(writer)
-			if err == nil {
-				defer zstdw.Close()
+			if err != nil {
 				contentEncoding = ""
+			} else {
+				defer zstdw.Close()
 				writer = zstdw
 			}
 		}

@@ -153,6 +153,7 @@ func ParseAcceptHeader(acceptHeader string) string {
 }
 
 func ParseAcceptEncodingHeader(acceptHeader string) string {
+	hasGzip := false
 	for mediaType := range strings.SplitSeq(acceptHeader, ",") {
 		mt := strings.TrimSpace(mediaType)
 		// Remove quality factors (;q=0.8) if present
@@ -161,15 +162,19 @@ func ParseAcceptEncodingHeader(acceptHeader string) string {
 		}
 		mt = strings.TrimSpace(mt)
 
-		// Check for supported types in order of preference
 		switch strings.ToLower(mt) {
-		case "gzip":
-			return "gzip"
 		case "zstd":
+			// zstd is the preferred encoding, so we can return immediately.
 			return "zstd"
+		case "gzip":
+			hasGzip = true
 		case "*/*":
-			return "gzip" // default for wildcard
+			hasGzip = true // default for wildcard
 		}
+	}
+
+	if hasGzip {
+		return "gzip"
 	}
 	return "" // default fallback
 }
