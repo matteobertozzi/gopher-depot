@@ -74,7 +74,7 @@ func TracingMiddleware(next http.Handler) http.Handler {
 		traceId := tracer.GenerateTraceId()
 		httpRequests.Inc(time.Now())
 
-		clientIp := getClientIP(r)
+		clientIp := GetClientIP(r)
 		ctx := context.WithValue(r.Context(), "TraceId", traceId)
 		w.Header().Set("X-Request-Id", traceId)
 
@@ -95,7 +95,7 @@ func TracingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func getClientIP(r *http.Request) string {
+func GetClientIP(r *http.Request) string {
 	ip := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
 	if ip == "" {
 		ip = strings.TrimSpace(r.Header.Get("X-Real-IP"))

@@ -35,62 +35,49 @@ type HttpErrorMessage struct {
 	Data       any    `json:"data"`
 }
 
+func NewHttpErrorMessage(ctx context.Context, statusCode int, status string, message string) *HttpErrorMessage {
+	return &HttpErrorMessage{
+		StatusCode: statusCode,
+		TraceId:    tracer.GetTraceId(ctx),
+		Status:     status,
+		Message:    message,
+	}
+}
+
 func (e *HttpErrorMessage) Error() string {
 	return fmt.Sprintf("HTTP %d: %s %s", e.StatusCode, e.Status, e.Message)
 }
 
 func NewBadRequestError(ctx context.Context, status string, message string) *HttpErrorMessage {
-	return &HttpErrorMessage{
-		StatusCode: 400,
-		TraceId:    tracer.GetTraceId(ctx),
-		Status:     status,
-		Message:    message,
-	}
+	return NewHttpErrorMessage(ctx, 400, status, message)
 }
 
 func NewUnauthorizedError(ctx context.Context, status string, message string) *HttpErrorMessage {
-	return &HttpErrorMessage{
-		StatusCode: 401,
-		TraceId:    tracer.GetTraceId(ctx),
-		Status:     status,
-		Message:    message,
-	}
+	return NewHttpErrorMessage(ctx, 401, status, message)
 }
 
 func NewForbiddenError(ctx context.Context, status string, message string) *HttpErrorMessage {
-	return &HttpErrorMessage{
-		StatusCode: 403,
-		TraceId:    tracer.GetTraceId(ctx),
-		Status:     status,
-		Message:    message,
-	}
+	return NewHttpErrorMessage(ctx, 403, status, message)
+}
+
+func NewNotFound(ctx context.Context, status string, message string) *HttpErrorMessage {
+	return NewHttpErrorMessage(ctx, 404, status, message)
 }
 
 func NewConflictError(ctx context.Context, status string, message string) *HttpErrorMessage {
-	return &HttpErrorMessage{
-		StatusCode: 409,
-		TraceId:    tracer.GetTraceId(ctx),
-		Status:     status,
-		Message:    message,
-	}
+	return NewHttpErrorMessage(ctx, 409, status, message)
+}
+
+func NewTooManyRequestsError(ctx context.Context, status string, message string) *HttpErrorMessage {
+	return NewHttpErrorMessage(ctx, 429, status, message)
 }
 
 func NewInternalServerError(ctx context.Context, message string) *HttpErrorMessage {
-	return &HttpErrorMessage{
-		StatusCode: 500,
-		TraceId:    tracer.GetTraceId(ctx),
-		Status:     "INTERNAL_SERVER_ERROR",
-		Message:    message,
-	}
+	return NewHttpErrorMessage(ctx, 500, "INTERNAL_SERVER_ERROR", message)
 }
 
 func NewServiceUnavailableError(ctx context.Context, message string) *HttpErrorMessage {
-	return &HttpErrorMessage{
-		StatusCode: 503,
-		TraceId:    tracer.GetTraceId(ctx),
-		Status:     "SERVICE_UNAVAILABLE",
-		Message:    message,
-	}
+	return NewHttpErrorMessage(ctx, 503, "SERVICE_UNAVAILABLE", message)
 }
 
 func WriteErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
