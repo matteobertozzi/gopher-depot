@@ -42,53 +42,65 @@ func NewSqliteTable[T SqlRowLoader](s *SqliteStorage, name string) *SqlTable[T] 
 }
 
 func SqliteStorageOpenReadOnly(dbPath string) (*SqliteStorage, error) {
-	return SqliteStorageOpen(dbPath, true)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=ro", dbPath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	return &SqliteStorage{
+		db:        db,
+		readonly:  true,
+		closeChan: make(chan struct{}),
+	}, nil
 }
 
 func SqliteStorageOpenReadWrite(dbPath string) (*SqliteStorage, error) {
-	return SqliteStorageOpen(dbPath, false)
+	return sqliteStorageOpenReadWrite(dbPath, false)
 }
 
-func SqliteStorageOpen(dbPath string, readonly bool) (*SqliteStorage, error) {
-	var db *sql.DB
-	var err error
+func SqliteStorageOpenReadWriteWithInMemoryJournal(dbPath string) (*SqliteStorage, error) {
+	return sqliteStorageOpenReadWrite(dbPath, true)
+}
 
-	// Construct the DSN based on readonly flag
-	if readonly {
-		db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=ro", dbPath))
-	} else {
-		os.MkdirAll(path.Dir(dbPath), 0750)
+func sqliteStorageOpenReadWrite(dbPath string, inMemoryJournal bool) (*SqliteStorage, error) {
+	os.MkdirAll(path.Dir(dbPath), 0750)
 
-		// For read-write, allow normal opening, then apply pragmas
-		db, err = sql.Open("sqlite3", dbPath)
-	}
-
+	// For read-write, allow normal opening, then apply pragmas
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
 	wrapper := &SqliteStorage{
 		db:        db,
-		readonly:  readonly,
+		readonly:  false,
 		closeChan: make(chan struct{}),
 	}
 
-	if !readonly {
+	if inMemoryJournal {
+		// Use journal_mode = MEMORY
+		if _, err := db.Exec("PRAGMA journal_mode=MEMORY;"); err != nil {
+			wrapper.Close() // Close the DB on error
+			return nil, fmt.Errorf("failed to set journal_mode=MEMORY: %w", err)
+		}
+		log.Println("Set PRAGMA journal_mode=MEMORY")
+	} else {
+		// Use WAL journal mode for better performance and durability
 		if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
 			wrapper.Close() // Close the DB on error
 			return nil, fmt.Errorf("failed to set journal_mode=WAL: %w", err)
 		}
 		log.Println("Set PRAGMA journal_mode=WAL")
-
-		if _, err := db.Exec("PRAGMA auto_vacuum=2;"); err != nil {
-			wrapper.Close() // Close the DB on error
-			return nil, fmt.Errorf("failed to set auto_vacuum=2: %w", err)
-		}
-		log.Println("Set PRAGMA auto_vacuum=2")
-
-		// Start incremental vacuum timer
-		wrapper.startIncrementalVacuumTimer()
 	}
+
+	if _, err := db.Exec("PRAGMA auto_vacuum=2;"); err != nil {
+		wrapper.Close() // Close the DB on error
+		return nil, fmt.Errorf("failed to set auto_vacuum=2: %w", err)
+	}
+	log.Println("Set PRAGMA auto_vacuum=2")
+
+	// Start incremental vacuum timer
+	wrapper.startIncrementalVacuumTimer()
 
 	return wrapper, nil
 }
