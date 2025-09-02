@@ -29,6 +29,7 @@ type Route struct {
 	Method             string
 	Uri                string
 	RequiredPermission RequiredPermission
+	RateLimit          RateLimitConfig
 	Handler            http.HandlerFunc
 }
 
@@ -52,11 +53,42 @@ func AddDeleteRoute(mux *http.ServeMux, uri string, requiredPermission RequiredP
 	addRoute(mux, "DELETE", uri, requiredPermission, handler)
 }
 
+func AddGetRouteWithRateLimit(mux *http.ServeMux, uri string, requiredPermission RequiredPermission, rateLimit RateLimitConfig, handler http.HandlerFunc) {
+	addRouteWithRateLimit(mux, "GET", uri, requiredPermission, rateLimit, handler)
+}
+
+func AddPostRouteWithRateLimit(mux *http.ServeMux, uri string, requiredPermission RequiredPermission, rateLimit RateLimitConfig, handler http.HandlerFunc) {
+	addRouteWithRateLimit(mux, "POST", uri, requiredPermission, rateLimit, handler)
+}
+
+func AddPutRouteWithRateLimit(mux *http.ServeMux, uri string, requiredPermission RequiredPermission, rateLimit RateLimitConfig, handler http.HandlerFunc) {
+	addRouteWithRateLimit(mux, "PUT", uri, requiredPermission, rateLimit, handler)
+}
+
+func AddPatchRouteWithRateLimit(mux *http.ServeMux, uri string, requiredPermission RequiredPermission, rateLimit RateLimitConfig, handler http.HandlerFunc) {
+	addRouteWithRateLimit(mux, "PATCH", uri, requiredPermission, rateLimit, handler)
+}
+
+func AddDeleteRouteWithRateLimit(mux *http.ServeMux, uri string, requiredPermission RequiredPermission, rateLimit RateLimitConfig, handler http.HandlerFunc) {
+	addRouteWithRateLimit(mux, "DELETE", uri, requiredPermission, rateLimit, handler)
+}
+
 func addRoute(mux *http.ServeMux, method string, uri string, requiredPermission RequiredPermission, handler http.HandlerFunc) {
 	AddRoute(mux, Route{
 		Method:             method,
 		Uri:                uri,
 		RequiredPermission: requiredPermission,
+		RateLimit:          NoRateLimit,
+		Handler:            handler,
+	})
+}
+
+func addRouteWithRateLimit(mux *http.ServeMux, method string, uri string, requiredPermission RequiredPermission, rateLimit RateLimitConfig, handler http.HandlerFunc) {
+	AddRoute(mux, Route{
+		Method:             method,
+		Uri:                uri,
+		RequiredPermission: requiredPermission,
+		RateLimit:          rateLimit,
 		Handler:            handler,
 	})
 }
@@ -76,6 +108,14 @@ func AddRoute(mux *http.ServeMux, route Route) {
 		// authentication header required, and role validation
 		requireRoleMiddleware := RequireRoleMiddleware(route.RequiredPermission)
 		handler = AuthMiddleware(requireRoleMiddleware(route.Handler))
+	}
+
+	// Apply rate limiting if configured (non-zero values)
+	if route.RateLimit.IsNotEmpty() {
+		rateLimitMiddleware := CreateRateLimitMiddleware(route.RateLimit)
+		handler = rateLimitMiddleware(handler)
+		tracer.LogDebug(context.TODO(), "RATE LIMIT ENABLED {http.method} {http.uri} - {requests}/min, burst {burst}",
+			route.Method, route.Uri, route.RateLimit.RequestsPerMinute, route.RateLimit.BurstSize)
 	}
 
 	if route.Method != "" {

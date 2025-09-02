@@ -31,6 +31,7 @@ type DummyBody struct {
 
 func (s *DummyService) RegisterRoutes(mux *http.ServeMux) {
 	tashkewey.AddRoute(mux, s.handleDummy())
+	tashkewey.AddRoute(mux, s.handleRateLimitedDummy())
 }
 
 func (s *DummyService) handleDummy() tashkewey.Route {
@@ -39,6 +40,19 @@ func (s *DummyService) handleDummy() tashkewey.Route {
 		Uri:                "/dummy",
 		RequiredPermission: tashkewey.AllowPublic{},
 		Handler: tashkewey.DataInOutMiddleware(func(r *http.Request, body *DummyBody) (*DummyBody, error) {
+			return body, nil
+		}),
+	}
+}
+
+func (s *DummyService) handleRateLimitedDummy() tashkewey.Route {
+	return tashkewey.Route{
+		Method:             http.MethodPost,
+		Uri:                "/rate-limited-dummy",
+		RequiredPermission: tashkewey.AllowPublic{},
+		RateLimit:          tashkewey.RateLimitConfig{RequestsPerMinute: 10, BurstSize: 5},
+		Handler: tashkewey.DataInOutMiddleware(func(r *http.Request, body *DummyBody) (*DummyBody, error) {
+			body.Value = "rate-limited: " + body.Value
 			return body, nil
 		}),
 	}
