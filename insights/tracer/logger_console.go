@@ -23,10 +23,12 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"github.com/matteobertozzi/gopher-depot/insights/humans"
@@ -52,7 +54,7 @@ var (
 
 type consoleLogger struct{}
 
-func NewConsoleLogger() Logger {
+func NewConsoleLogger() *consoleLogger {
 	return &consoleLogger{}
 }
 
@@ -97,6 +99,39 @@ func (l *consoleLogger) EmitLogEvent(context context.Context, level string, erro
 	}
 
 	log.Print(sb.String())
+}
+
+func (l *consoleLogger) EmitMetricsEvent(ctx context.Context, event *MetricsEvent) {
+	fmt.Printf("\n=== METRICS EVENT ===\n")
+	fmt.Printf("Timestamp: %s\n", event.Timestamp.Format(time.RFC3339))
+	fmt.Printf("TraceId:   %s\n", event.TraceId)
+	
+	if len(event.Tags) > 0 || len(event.Measurements) > 0 {
+		fmt.Printf("\nMetrics Data:\n")
+		
+		// Create a tabwriter for aligned output
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		
+		// Add tags first
+		if len(event.Tags) > 0 {
+			for key, value := range event.Tags {
+				formatted := HumanFormatFieldValue(key, value)
+				fmt.Fprintf(w, "%s\t%s\t(tag)\n", key, formatted)
+			}
+		}
+		
+		// Add measurements
+		if len(event.Measurements) > 0 {
+			for key, value := range event.Measurements {
+				formatted := HumanFormatFieldValue(key, value)
+				fmt.Fprintf(w, "%s\t%s\t(measurement)\n", key, formatted)
+			}
+		}
+		
+		w.Flush()
+	}
+	
+	fmt.Printf("====================\n\n")
 }
 
 func consoleLevelColorText(level string, text string) string {
