@@ -46,12 +46,12 @@ func WriteResponseBody(w http.ResponseWriter, r *http.Request, resp any) {
 }
 
 func WriteImage(w http.ResponseWriter, r *http.Request, imageType string, timestamp time.Time, eTag string, image []byte) {
-	if r.Header.Get("If-None-Match") == eTag || r.Header.Get("If-Modified-Since") == timestamp.Format(http.TimeFormat) {
+	if (eTag != "" && r.Header.Get("If-None-Match") == eTag) || r.Header.Get("If-Modified-Since") == timestamp.Format(http.TimeFormat) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Type", imageType)
 	w.Header().Set("Last-Modified", timestamp.Format(http.TimeFormat))
 	w.Header().Set("ETag", eTag)
 	w.Header().Set("Cache-Control", "public, max-age=86400")
