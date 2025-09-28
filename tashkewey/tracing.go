@@ -58,15 +58,6 @@ var httpTopIps = metrics.RegisterMetric[*metrics.TopKTable](metrics.Metric{
 	Collector: metrics.NewTopKTable(16, 5, 60*time.Minute),
 })
 
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
 
 func TracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +69,7 @@ func TracingMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), "TraceId", traceId)
 		w.Header().Set("X-Request-Id", traceId)
 
-		ww := &responseWriter{ResponseWriter: w, statusCode: 200}
+		ww := newHijackerResponseWriter(w)
 		next.ServeHTTP(ww, r.WithContext(ctx))
 
 		endTime := time.Now()

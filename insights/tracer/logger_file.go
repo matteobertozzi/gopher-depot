@@ -31,6 +31,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 type JournalFileName struct {
@@ -117,11 +119,18 @@ type FileLogger struct {
 	done          chan struct{}
 	wg            sync.WaitGroup
 	entryPool     sync.Pool
+	zstdEncoder   *zstd.Encoder
 }
 
 func NewFileLogger(logDir string, logName string, maxSize int, maxBackups int, maxAge time.Duration) (*FileLogger, error) {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	// Create zstd encoder
+	encoder, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedDefault))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create zstd encoder: %w", err)
 	}
 
 	logger := &FileLogger{
@@ -135,6 +144,7 @@ func NewFileLogger(logDir string, logName string, maxSize int, maxBackups int, m
 		flushInterval: 250 * time.Millisecond,     // 250ms flush interval
 		lastFlush:     time.Now(),
 		done:          make(chan struct{}),
+		zstdEncoder:   encoder,
 		entryPool: sync.Pool{
 			New: func() any {
 				return &LogEntry{}
@@ -343,12 +353,15 @@ func (f *FileLogger) flushBuffer() {
 		return
 	}
 
-	if _, err := f.currentFile.Write(f.buffer[:f.bufferSize]); err != nil {
+	// Compress the buffer data using zstd
+	compressed := f.zstdEncoder.EncodeAll(f.buffer[:f.bufferSize], nil)
+
+	if _, err := f.currentFile.Write(compressed); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
 		return
 	}
 
-	f.currentSize += int64(f.bufferSize)
+	f.currentSize += int64(len(compressed))
 	f.buffer = f.buffer[:0] // Reset buffer
 	f.bufferSize = 0
 	f.lastFlush = time.Now()
@@ -425,6 +438,11 @@ func (f *FileLogger) Close() error {
 
 	// Final flush
 	f.flushBuffer()
+
+	// Close zstd encoder
+	if f.zstdEncoder != nil {
+		f.zstdEncoder.Close()
+	}
 
 	if f.currentFile != nil {
 		err := f.currentFile.Close()
