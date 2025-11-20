@@ -63,7 +63,7 @@ type RequiredModulePermission struct {
 
 func (v RequiredModulePermission) EnsurePermission(context context.Context, session *AuthSession) error {
 	if session == nil {
-		return errors.New("session not found")
+		return NewUnauthorizedError(context, "INVALID_SESSION", "session not found")
 	}
 
 	if err := ensureSessionIssuer(context, session, v.Issuers); err != nil {
@@ -90,7 +90,7 @@ func ensureSessionIssuer(context context.Context, session *AuthSession, allowedI
 
 	// Deny access to the issuer
 	tracer.LogWarn(context, "invalid session issuer, expected one of {allowed.issuers} got {session.issuer}", allowedIssuers, session.Issuer)
-	return errors.New("invalid session issuer")
+	return NewUnauthorizedError(context, "INVALID_SESSION", "invalid session issuer")
 }
 
 func ensureSessionRoles(context context.Context, session *AuthSession, allowedModule string, allowedRoles []string) error {
@@ -101,8 +101,9 @@ func ensureSessionRoles(context context.Context, session *AuthSession, allowedMo
 
 	sessionModuleRoles, hasModuleRoles := session.Roles[allowedModule]
 	if !hasModuleRoles {
-		tracer.LogWarn(context, "invalid session roles, expected roles for {module} {roles}: got {session.roles}", allowedModule, allowedRoles, session.Roles)
-		return errors.New("invalid session, missing module")
+		tracer.LogWarn(context, "invalid session roles, expected roles for {module} {roles}: got {session.roles}",
+			allowedModule, allowedRoles, session.Roles)
+		return NewUnauthorizedError(context, "UNAUTHORIZED", "invalid session, missing module")
 	}
 
 	// TODO: optimize
@@ -112,8 +113,9 @@ func ensureSessionRoles(context context.Context, session *AuthSession, allowedMo
 		}
 	}
 
-	tracer.LogWarn(context, "invalid session roles, expected one of {allowed.roles} got {session.roles}", allowedRoles, session.Roles)
-	return errors.New("invalid session roles")
+	tracer.LogWarn(context, "invalid {module} session roles, expected one of {allowed.roles} got {session.roles}",
+		allowedModule, allowedRoles, session.Roles)
+	return NewUnauthorizedError(context, "UNAUTHORIZED", "invalid session roles")
 }
 
 func RequireRoleMiddleware(requiredPermission RequiredPermission) func(http.Handler) http.Handler {
