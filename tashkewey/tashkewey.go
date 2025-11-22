@@ -89,6 +89,10 @@ func (s *Tashkewey) HandleFunc(pattern string, handler func(http.ResponseWriter,
 	s.mux.HandleFunc(pattern, handler)
 }
 
+func (s *Tashkewey) SetKeepAlivesEnabled(enabled bool) {
+	s.server.SetKeepAlivesEnabled(enabled)
+}
+
 func (s *Tashkewey) ListenAndServe() {
 	done := make(chan bool)
 	quit := make(chan os.Signal, syscall.SIGHUP)
