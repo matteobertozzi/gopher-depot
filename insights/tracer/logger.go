@@ -20,6 +20,7 @@ package tracer
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -47,6 +48,7 @@ var _metricsLogger MetricsLogger = NewConsoleLogger()
 
 func SetGlobalLogger(logger Logger) {
 	_logger = logger
+	log.SetOutput(&loggerWriter{logger: logger})
 }
 
 func SetGlobalMetricsLogger(logger MetricsLogger) {
@@ -158,4 +160,15 @@ func simplifyModulePath(path string) string {
 	}
 
 	return path
+}
+
+// adapts the Logger interface to io.Writer for use with log.SetOutput
+type loggerWriter struct {
+	logger Logger
+}
+
+func (w *loggerWriter) Write(p []byte) (n int, err error) {
+	msg := strings.TrimSuffix(string(p), "\n")
+	w.logger.EmitLogEvent(context.Background(), "TRACE", "", msg, nil)
+	return len(p), nil
 }

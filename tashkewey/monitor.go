@@ -1,8 +1,8 @@
 package tashkewey
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"runtime"
 	runtimeMetrics "runtime/metrics"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/matteobertozzi/gopher-depot/insights/metrics"
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 )
 
 type Monitor struct {
@@ -84,7 +85,7 @@ func (m *Monitor) collectDataNow() {
 	//cpuUsage.Sample(currentTime, cpuPercent)
 	goRoutines.Sample(currentTime, int64(runtime.NumGoroutine()))
 	if cpuPercent > 0 {
-		log.Printf("CPU usage: %d%%", cpuPercent)
+		tracer.LogDebug(context.Background(), "CPU usage: {cpuPercent}%", cpuPercent)
 	}
 }
 

@@ -98,9 +98,10 @@ func loadBasicAuthConfig(configs []BasicAuthConfig) error {
 			}
 			index := bytes.IndexByte(token, ':')
 			if index < 0 {
-				config.Subject = &config.Token
+				subject := string(token)
+				config.Subject = &subject
 			} else {
-				subject := config.Token[:index]
+				subject := string(token[:index])
 				config.Subject = &subject
 			}
 		}

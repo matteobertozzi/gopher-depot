@@ -58,16 +58,20 @@ var httpTopIps = metrics.RegisterMetric[*metrics.TopKTable](metrics.Metric{
 	Collector: metrics.NewTopKTable(16, 5, 60*time.Minute),
 })
 
+const headerRequestId = "X-Request-Id"
 
 func TracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-		traceId := tracer.GenerateTraceId()
+		traceId := r.Header.Get(headerRequestId)
+		if traceId == "" {
+			traceId = tracer.GenerateTraceId()
+		}
 		httpRequests.Inc(time.Now())
 
 		clientIp := GetClientIP(r)
 		ctx := context.WithValue(r.Context(), "TraceId", traceId)
-		w.Header().Set("X-Request-Id", traceId)
+		w.Header().Set(headerRequestId, traceId)
 
 		ww := newHijackerResponseWriter(w)
 		next.ServeHTTP(ww, r.WithContext(ctx))

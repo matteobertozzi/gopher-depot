@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 	"github.com/matteobertozzi/gopher-depot/sqlh"
 )
 
@@ -66,7 +68,7 @@ func demoReader(snapshotDir string) {
 			rows.Scan(&count)
 		}
 
-		log.Printf("Found %d users", count)
+		tracer.LogDebug(context.Background(), "Found {count} users", count)
 		time.Sleep(1 * time.Second)
 
 		rows.Close()

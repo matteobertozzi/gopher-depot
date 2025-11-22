@@ -128,11 +128,13 @@ func IsAudienceRequired() bool {
 }
 
 func jwtErrorToHttpError(ctx context.Context, err error) error {
+	traceId := tracer.GetTraceId(ctx)
+
 	switch {
 	case errors.Is(err, jwt.ErrTokenExpired):
 		return &HttpErrorMessage{
 			StatusCode: http.StatusUnauthorized,
-			TraceId:    ctx.Value("TraceId").(string),
+			TraceId:    traceId,
 			Status:     "SESSION_EXPIRED",
 			Message:    "jwt token expired",
 		}
@@ -140,7 +142,7 @@ func jwtErrorToHttpError(ctx context.Context, err error) error {
 		tracer.LogWarn(ctx, "invalid jwt token {error.message}", err.Error())
 		return &HttpErrorMessage{
 			StatusCode: http.StatusUnauthorized,
-			TraceId:    ctx.Value("TraceId").(string),
+			TraceId:    traceId,
 			Status:     "INVALID_TOKEN",
 			Message:    err.Error(),
 		}
@@ -149,7 +151,7 @@ func jwtErrorToHttpError(ctx context.Context, err error) error {
 	tracer.LogWarn(ctx, "unable to parse jwt token {error.message}", err.Error())
 	return &HttpErrorMessage{
 		StatusCode: http.StatusUnauthorized,
-		TraceId:    ctx.Value("TraceId").(string),
+		TraceId:    traceId,
 		Status:     "INVALID_TOKEN",
 		Message:    "unable to parse token",
 	}
@@ -277,7 +279,8 @@ func fetchHttpJwks(jwksURL string, jwks *JWKSet) error {
 	// Set Basic Auth credentials
 	req.Header.Set("Authorization", "basic dXplcjpwYXp3b3Jk")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch JWKs from %s: %w", jwksURL, err)
 	}

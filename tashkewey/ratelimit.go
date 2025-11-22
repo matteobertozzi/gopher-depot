@@ -20,6 +20,7 @@ package tashkewey
 import (
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/matteobertozzi/gopher-depot/insights/tracer"
@@ -45,15 +46,18 @@ type rateLimiter struct {
 	refillRate int
 	lastRefill time.Time
 	mutex      sync.Mutex
+	lastUsed   atomic.Int64
 }
 
 func newRateLimiter(requestsPerMinute, burstSize int) *rateLimiter {
-	return &rateLimiter{
+	rl := &rateLimiter{
 		tokens:     burstSize,
 		maxTokens:  burstSize,
 		refillRate: requestsPerMinute,
 		lastRefill: time.Now(),
 	}
+	rl.lastUsed.Store(time.Now().UnixNano())
+	return rl
 }
 
 func (rl *rateLimiter) allow() bool {
@@ -69,6 +73,8 @@ func (rl *rateLimiter) allow() bool {
 		rl.lastRefill = now
 	}
 
+	rl.lastUsed.Store(now.UnixNano())
+
 	if rl.tokens > 0 {
 		rl.tokens--
 		return true
@@ -78,16 +84,22 @@ func (rl *rateLimiter) allow() bool {
 }
 
 type RateLimitMiddleware struct {
-	config   RateLimitConfig
-	limiters map[string]*rateLimiter
-	mutex    sync.RWMutex
+	config          RateLimitConfig
+	limiters        map[string]*rateLimiter
+	mutex           sync.RWMutex
+	limiterTTL      time.Duration
+	cleanupInterval time.Duration
 }
 
 func NewRateLimitMiddleware(config RateLimitConfig) *RateLimitMiddleware {
-	return &RateLimitMiddleware{
-		config:   config,
-		limiters: make(map[string]*rateLimiter),
+	middleware := &RateLimitMiddleware{
+		config:          config,
+		limiters:        make(map[string]*rateLimiter),
+		limiterTTL:      30 * time.Minute,
+		cleanupInterval: 5 * time.Minute,
 	}
+	go middleware.cleanupLoop()
+	return middleware
 }
 
 func (rlm *RateLimitMiddleware) getLimiter(key string) *rateLimiter {
@@ -138,4 +150,27 @@ func (rlm *RateLimitMiddleware) middleware(next http.Handler) http.Handler {
 func CreateRateLimitMiddleware(config RateLimitConfig) func(http.Handler) http.Handler {
 	middleware := NewRateLimitMiddleware(config)
 	return middleware.middleware
+}
+
+func (rlm *RateLimitMiddleware) cleanupLoop() {
+	ticker := time.NewTicker(rlm.cleanupInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		rlm.evictStaleLimiters()
+	}
+}
+
+func (rlm *RateLimitMiddleware) evictStaleLimiters() {
+	cutoff := time.Now().Add(-rlm.limiterTTL)
+
+	rlm.mutex.Lock()
+	defer rlm.mutex.Unlock()
+
+	for key, limiter := range rlm.limiters {
+		lastUsed := time.Unix(0, limiter.lastUsed.Load())
+		if lastUsed.Before(cutoff) {
+			delete(rlm.limiters, key)
+		}
+	}
 }

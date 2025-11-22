@@ -18,14 +18,15 @@
 package sqlh
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"sync"
 	"time"
 
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -83,21 +84,21 @@ func sqliteStorageOpenReadWrite(dbPath string, inMemoryJournal bool) (*SqliteSto
 			wrapper.Close() // Close the DB on error
 			return nil, fmt.Errorf("failed to set journal_mode=MEMORY: %w", err)
 		}
-		log.Println("Set PRAGMA journal_mode=MEMORY")
+		tracer.LogDebug(context.Background(), "Set PRAGMA journal_mode=MEMORY")
 	} else {
 		// Use WAL journal mode for better performance and durability
 		if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
 			wrapper.Close() // Close the DB on error
 			return nil, fmt.Errorf("failed to set journal_mode=WAL: %w", err)
 		}
-		log.Println("Set PRAGMA journal_mode=WAL")
+		tracer.LogDebug(context.Background(), "Set PRAGMA journal_mode=WAL")
 	}
 
 	if _, err := db.Exec("PRAGMA auto_vacuum=2;"); err != nil {
 		wrapper.Close() // Close the DB on error
 		return nil, fmt.Errorf("failed to set auto_vacuum=2: %w", err)
 	}
-	log.Println("Set PRAGMA auto_vacuum=2")
+	tracer.LogDebug(context.Background(), "Set PRAGMA auto_vacuum=2")
 
 	// Start incremental vacuum timer
 	wrapper.startIncrementalVacuumTimer()
@@ -113,13 +114,13 @@ func (s *SqliteStorage) Close() error {
 	if s.vacuumTimer != nil {
 		s.vacuumTimer.Stop()
 		close(s.closeChan) // Signal the goroutine to exit
-		log.Println("Stopped incremental vacuum timer.")
+		tracer.LogDebug(context.Background(), "Stopped incremental vacuum timer.")
 	}
 
 	if s.db != nil {
 		err := s.db.Close()
 		s.db = nil // Prevent double close
-		log.Println("Database connection closed.")
+		tracer.LogDebug(context.Background(), "Database connection closed.")
 		return err
 	}
 
@@ -128,7 +129,7 @@ func (s *SqliteStorage) Close() error {
 
 func (s *SqliteStorage) startIncrementalVacuumTimer() {
 	s.vacuumTimer = time.NewTicker(15 * time.Minute)
-	log.Println("Started incremental vacuum timer (every 15 minutes).")
+	tracer.LogDebug(context.Background(), "Started incremental vacuum timer (every 15 minutes).")
 
 	go func() {
 		for {
@@ -136,13 +137,13 @@ func (s *SqliteStorage) startIncrementalVacuumTimer() {
 			case <-s.vacuumTimer.C:
 				s.mu.Lock() // Protect DB access during vacuum
 				if s.db != nil {
-					log.Println("Calling PRAGMA incremental_vacuum...")
+					tracer.LogDebug(context.Background(), "Calling PRAGMA incremental_vacuum...")
 					// The argument to incremental_vacuum is the number of pages to vacuum.
 					// A value of 0 vacuums all free pages.
 					if _, err := s.db.Exec("PRAGMA incremental_vacuum(0);"); err != nil {
-						log.Printf("Error during incremental vacuum: %v", err)
+						tracer.LogError(context.Background(), err, "Error during incremental vacuum")
 					} else {
-						log.Println("PRAGMA incremental_vacuum completed.")
+						tracer.LogDebug(context.Background(), "PRAGMA incremental_vacuum completed.")
 					}
 				}
 				s.mu.Unlock()

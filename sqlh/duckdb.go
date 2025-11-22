@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"fmt"
 	"iter"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +30,7 @@ import (
 	"time"
 
 	_ "github.com/marcboeker/go-duckdb/v2"
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 )
 
 type DuckDbSnapshotReader struct {
@@ -188,12 +188,12 @@ func (r *DuckDbSnapshotReader) WatchForNewFiles(options WatchOptions) {
 			case <-ticker.C:
 				fileCount, latestSeq, _, err := r.findLatestSnapshot()
 				if err != nil {
-					log.Printf("failed to find latest snapshot: %v", err)
+					tracer.LogError(r.watchCtx, err, "failed to find latest snapshot")
 					continue // Skip this iteration on error
 				}
 
 				if fileCount == 0 {
-					log.Printf("no snapshot files found")
+					tracer.LogDebug(r.watchCtx, "no snapshot files found")
 					continue // Skip this iteration on error
 				}
 
@@ -201,7 +201,7 @@ func (r *DuckDbSnapshotReader) WatchForNewFiles(options WatchOptions) {
 				currentSeq := r.currentSeq
 				r.mu.RUnlock()
 
-				log.Printf("check %d > %d", latestSeq, currentSeq)
+				tracer.LogDebug(r.watchCtx, "check {latestSeq} > {currentSeq}", latestSeq, currentSeq)
 				if latestSeq > currentSeq {
 					r.Reload(ReloadOptions{DeleteOnClose: options.DeleteOnClose})
 				}
@@ -220,7 +220,7 @@ func (r *DuckDbSnapshotReader) WaitForDbAvailable(pollInterval time.Duration) {
 			return
 		}
 
-		log.Print("polling for db availability, not available")
+		tracer.LogDebug(context.Background(), "polling for db availability, not available")
 		time.Sleep(pollInterval)
 	}
 }
@@ -249,7 +249,7 @@ func (r *DuckDbSnapshotReader) deleteOldSnapshots(belowSeq uint64) {
 	for seqId, file := range findSequenceFiles(files, r.filePrefix, r.fileSuffix) {
 		if seqId < belowSeq {
 			filePath := filepath.Join(r.dirPath, file.Name())
-			log.Printf("deleting old snapshot %d < %d: %s", seqId, belowSeq, filePath)
+			tracer.LogDebug(context.Background(), "deleting old snapshot {seqId} < {belowSeq}: {filePath}", seqId, belowSeq, filePath)
 			os.Remove(filePath) // Ignore errors for cleanup
 		}
 	}
@@ -349,7 +349,7 @@ func (w *DuckDbWriter) Snapshot(dirPath, prefix, suffix string, maxSnapshots int
 		return fmt.Errorf("failed to rename snapshot: %w", err)
 	}
 
-	log.Printf("snapshot %d", latestSeq+1)
+	tracer.LogDebug(context.Background(), "snapshot {seq}", latestSeq+1)
 	return nil
 }
 

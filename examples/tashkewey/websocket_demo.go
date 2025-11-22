@@ -19,10 +19,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 	"github.com/matteobertozzi/gopher-depot/tashkewey"
 )
 
@@ -63,7 +65,7 @@ func (s *WebSocketService) webSocketHandler(w http.ResponseWriter, r *http.Reque
 			log.Println("read error:", err)
 			break
 		}
-		log.Printf("recv: %s", p)
+		tracer.LogDebug(context.Background(), "recv: {msg}", p)
 		err = conn.WriteMessage(messageType, p)
 		if err != nil {
 			log.Println("write error:", err)

@@ -68,7 +68,6 @@ func DataOutMiddleware[TResp any](handler DataOutHandlerFunc[TResp]) http.Handle
 		if err != nil {
 			WriteErrorResponse(w, r, err)
 		} else {
-			println("WRITE RESPONSE BODY")
 			WriteResponseBody(w, r, respBody)
 		}
 	}

@@ -3,9 +3,10 @@ package wal
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
+
+	"github.com/matteobertozzi/gopher-depot/insights/tracer"
 )
 
 type pendingWrite[T any] struct {
@@ -176,7 +177,7 @@ func (w *Wal[T]) flushLoop() {
 
 			if shouldFlush {
 				if err := w.flush(w.ctx); err != nil {
-					log.Printf("WAL: error during periodic flush: %v", err)
+					tracer.LogError(w.ctx, err, "WAL: error during periodic flush")
 				}
 			}
 
@@ -190,14 +191,14 @@ func (w *Wal[T]) flushLoop() {
 
 			if shouldFlush {
 				if err := w.flush(w.ctx); err != nil {
-					log.Printf("WAL: error during threshold flush: %v", err)
+					tracer.LogError(w.ctx, err, "WAL: error during threshold flush")
 				}
 			}
 
 		case <-w.ctx.Done(): // Shutdown signal received
 			// Perform a final flush.
 			if err := w.flush(context.Background()); err != nil { // Use a background context for final flush
-				log.Printf("WAL: error during final flush on close: %v", err)
+				tracer.LogError(context.Background(), err, "WAL: error during final flush on close")
 			}
 			return
 		}

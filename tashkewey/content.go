@@ -26,9 +26,18 @@ import (
 )
 
 func WriteResponseBody(w http.ResponseWriter, r *http.Request, resp any) {
-	if resp == nil || reflect.ValueOf(resp).IsNil() {
+	if resp == nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
+	}
+
+	val := reflect.ValueOf(resp)
+	switch val.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.Interface:
+		if val.IsNil() {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 	}
 
 	contentEncoding, contentType, bodyEnc, err := internal.EncodeResponseBody(r, resp)
