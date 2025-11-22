@@ -32,11 +32,13 @@ import (
 type Tashkewey struct {
 	server  *http.Server
 	mux     *http.ServeMux
+	sem     chan struct{}
 	healthy int32
 }
 
 type TashkeweyOptions struct {
-	CorsConfig *CorsConfig
+	CorsConfig     *CorsConfig
+	MaxConcurrency int
 }
 
 func NewTashkewey(addr string, options TashkeweyOptions) *Tashkewey {
@@ -48,6 +50,12 @@ func NewTashkewey(addr string, options TashkeweyOptions) *Tashkewey {
 		handler = CorsMiddleware(options.CorsConfig)(handler)
 	}
 	handler = TracingMiddleware(handler)
+
+	if options.MaxConcurrency > 0 {
+		var sem = make(chan struct{}, options.MaxConcurrency)
+		handler = limitMiddleware(sem)(handler)
+		tracer.LogInfo(context.Background(), "Init server {address} with limited {concurrency}", addr, options.MaxConcurrency)
+	}
 
 	return &Tashkewey{
 		mux: mux,
@@ -108,4 +116,19 @@ func (s *Tashkewey) ListenAndServe() {
 
 	<-done
 	tracer.LogInfo(context.Background(), "Server stopped")
+}
+
+func limitMiddleware(sem chan struct{}) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Acquire a token from the semaphore
+			sem <- struct{}{}
+			defer func() {
+				// Release the token back to the semaphore
+				<-sem
+			}()
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
