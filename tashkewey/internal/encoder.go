@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -55,17 +56,51 @@ var httpTopRespBodySize = metrics.RegisterMetric[*metrics.TopKTable](metrics.Met
 	Collector: metrics.NewTopKTable(16, 5, 60*time.Minute),
 })
 
+// bufferPool reuses bytes.Buffer objects to reduce GC pressure
+var bufferPool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
+// gzipWriterPool reuses gzip writers
+var gzipWriterPool = sync.Pool{
+	New: func() any {
+		return new(gzipWriter)
+	},
+}
+
+type gzipWriter struct {
+	*gzip.Writer
+	buf *bytes.Buffer
+}
+
 func EncodeResponseBody(r *http.Request, body any) (string, string, []byte, error) {
-	var buf bytes.Buffer
-	var writer io.Writer = &buf
+	buf := bufferPool.Get().(*bytes.Buffer)
+	defer func() {
+		buf.Reset()
+		bufferPool.Put(buf)
+	}()
+
+	var writer io.Writer = buf
 
 	contentEncoding := ParseAcceptEncodingHeader(r.Header.Get("Accept-Encoding"))
 	if contentEncoding != "" {
 		switch contentEncoding {
 		case "gzip":
-			gzw := gzip.NewWriter(writer)
-			defer gzw.Close()
-			writer = gzw
+			gzw := gzipWriterPool.Get().(*gzipWriter)
+			gzw.buf = buf
+			if gzw.Writer == nil {
+				gzw.Writer = gzip.NewWriter(buf)
+			} else {
+				gzw.Writer.Reset(buf)
+			}
+			writer = gzw.Writer
+			defer func() {
+				gzw.Close()
+				gzw.buf = nil
+				gzipWriterPool.Put(gzw)
+			}()
 		case "zstd":
 			zstdw, err := zstd.NewWriter(writer)
 			if err != nil {
@@ -77,20 +112,20 @@ func EncodeResponseBody(r *http.Request, body any) (string, string, []byte, erro
 		}
 	}
 
-	var encoder encoder
+	var enc encoder
 	contentType := ParseAcceptHeader(r.Header.Get("accept"))
 	switch contentType {
 	case "application/cbor":
-		encoder = cbor.NewEncoder(writer)
+		enc = cbor.NewEncoder(writer)
 	case "application/yajbe":
-		encoder = yajbe.NewEncoder(writer)
+		enc = yajbe.NewEncoder(writer)
 	case "text/yaml":
-		encoder = yaml.NewEncoder(writer)
+		enc = yaml.NewEncoder(writer)
 	default:
-		encoder = json.NewEncoder(writer)
+		enc = json.NewEncoder(writer)
 	}
 
-	err := encoder.Encode(body)
+	err := enc.Encode(body)
 	if err != nil {
 		return contentEncoding, contentType, nil, err
 	}
@@ -103,5 +138,8 @@ func EncodeResponseBody(r *http.Request, body any) (string, string, []byte, erro
 	httpRespBodySize.Sample(time.Now(), int64(buf.Len()))
 	httpTopRespBodySize.AddEvent(time.Now(), fmt.Sprintf("%s %s (%s %s)", r.Method, r.URL.Path, contentEncoding, contentType), int64(buf.Len()), tracer.GetTraceId(r.Context()))
 
-	return contentEncoding, contentType, buf.Bytes(), err
+	// Copy bytes before returning (buffer will be pooled)
+	result := make([]byte, buf.Len())
+	copy(result, buf.Bytes())
+	return contentEncoding, contentType, result, err
 }
