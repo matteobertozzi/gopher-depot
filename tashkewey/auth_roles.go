@@ -165,6 +165,11 @@ func calculateRoleResultSize(result stdRoleFetcherResult) int64 {
 // Global cache instance
 var roleCache = internal.NewCache[stdRoleFetcherResult](128, time.Hour, calculateRoleResultSize)
 
+// HTTP client with 2 second timeout
+var httpClient = &http.Client{
+	Timeout: 2 * time.Second,
+}
+
 func AuthSessionHttpRolesFetcher(url string) RoleFetcherFunc {
 	return func(ctx context.Context, session *AuthSession) error {
 		if cached, found := roleCache.Get(session.Token); found {
@@ -193,6 +198,8 @@ func AuthSessionHttpRolesFetcher(url string) RoleFetcherFunc {
 }
 
 func httpGet(url string, authToken string, respBody any) error {
+	start := time.Now()
+
 	// Create a request
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -203,10 +210,13 @@ func httpGet(url string, authToken string, respBody any) error {
 	req.Header.Add("authorization", authToken)
 
 	// Send the request
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
+		tracer.LogWarn(context.Background(), "failed to fetch roles from {url} in {duration}", url, time.Since(start))
 		return fmt.Errorf("error making the request: %v", err)
 	}
 
-	return internal.DecodeResponseBody(resp, &respBody)
+	err = internal.DecodeResponseBody(resp, &respBody)
+	tracer.LogDebug(context.Background(), "fetched roles from {url} in {duration}", url, time.Since(start))
+	return err
 }

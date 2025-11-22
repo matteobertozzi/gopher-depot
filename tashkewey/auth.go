@@ -132,9 +132,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// fetch roles
-		tracer.LogDebug(r.Context(), "role fetchers {session.issuer}: {fetchers}", session.Issuer, roleFetchers)
+		//tracer.LogDebug(r.Context(), "role fetchers {session.issuer}: {fetchers}", session.Issuer, roleFetchers)
 		if roleFetcher, hasRoleFetcher := roleFetchers[session.Issuer]; hasRoleFetcher {
-			tracer.LogDebug(r.Context(), "HAS ROLE FETCHER {fetcher} {issuer}", roleFetcher, session.Issuer)
+			//tracer.LogDebug(r.Context(), "HAS ROLE FETCHER {fetcher} {issuer}", roleFetcher, session.Issuer)
 			if err := roleFetcher(r.Context(), &session); err != nil {
 				tracer.LogError(r.Context(), err, "Unable to fetch roles for {session.issuer} {session.subject}", session.Issuer, session.Subject)
 				WriteErrorResponse(w, r, err)

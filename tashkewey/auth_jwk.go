@@ -271,6 +271,8 @@ func parseJwks(reader io.Reader, jwks *JWKSet) error {
 
 func fetchHttpJwks(jwksURL string, jwks *JWKSet) error {
 	tracer.LogDebug(context.Background(), "fetching JWKs from {jwks.url}", jwksURL)
+	start := time.Now()
+
 	req, err := http.NewRequest("GET", jwksURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create JWK request to %s: %v", jwksURL, err)
@@ -279,18 +281,27 @@ func fetchHttpJwks(jwksURL string, jwks *JWKSet) error {
 	// Set Basic Auth credentials
 	req.Header.Set("Authorization", "basic dXplcjpwYXp3b3Jk")
 
-	client := http.Client{Timeout: 5 * time.Second}
+	client := http.Client{Timeout: 2 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		duration := time.Since(start)
+		tracer.LogWarn(context.Background(), "failed to fetch JWKs from {jwks.url} in {duration}", jwksURL, duration)
 		return fmt.Errorf("failed to fetch JWKs from %s: %w", jwksURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		duration := time.Since(start)
+		tracer.LogWarn(context.Background(), "failed to fetch JWKs: HTTP {status} from {jwks.url} in {duration}", resp.StatusCode, jwksURL, duration)
 		return fmt.Errorf("failed to fetch JWKs: HTTP %d", resp.StatusCode)
 	}
 
-	return parseJwks(resp.Body, jwks)
+	err = parseJwks(resp.Body, jwks)
+	duration := time.Since(start)
+	if err == nil {
+		tracer.LogDebug(context.Background(), "fetched JWKs from {jwks.url} in {duration}", jwksURL, duration)
+	}
+	return err
 }
 
 func fetchFileJwks(jwksPath string, jwks *JWKSet) error {
