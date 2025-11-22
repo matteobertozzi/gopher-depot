@@ -87,6 +87,15 @@ func (e *LogEntry) String() string {
 	return fmt.Sprintf("%s [%s] %s:%d %s() %s %s: %s\n", date, e.TraceId, e.File, e.FileLine, e.FuncName, e.Level, e.Message, e.ErrorMessage)
 }
 
+func (e *LogEntry) StringBytes(buf []byte) []byte {
+	date := time.Now().Format(time.RFC3339)
+
+	if e.ErrorMessage == "" {
+		return fmt.Appendf(buf, "%s [%s] %s:%d %s() %s %s\n", date, e.TraceId, e.File, e.FileLine, e.FuncName, e.Level, e.Message)
+	}
+	return fmt.Appendf(buf, "%s [%s] %s:%d %s() %s %s: %s\n", date, e.TraceId, e.File, e.FileLine, e.FuncName, e.Level, e.Message, e.ErrorMessage)
+}
+
 // Reset clears the LogEntry fields for reuse
 func (e *LogEntry) Reset() {
 	e.Timestamp = time.Time{}
@@ -314,11 +323,10 @@ func (f *FileLogger) cleanupOldFiles() {
 func (f *FileLogger) writeEntry(entry *LogEntry) {
 	f.mu.Lock()
 
-	entryStr := entry.String()
-	entryBytes := []byte(entryStr)
+	entryBytes := entry.StringBytes(nil)
 	entrySize := int64(len(entryBytes))
 
-	// Return entry to pool immediately after converting to string
+	// Return entry to pool immediately after converting to bytes
 	f.putLogEntry(entry)
 
 	// Check if we need to flush due to buffer size

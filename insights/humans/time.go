@@ -75,17 +75,18 @@ func TimeSeconds(sec float64) string {
 	seconds := math.Mod(rem, 60)
 
 	var buf strings.Builder
+	buf.Grow(32)
 
 	if hours > 0 {
-		buf.WriteString(fmt.Sprintf("%.0fhrs, ", hours))
+		fmt.Fprintf(&buf, "%.0fhrs, ", hours)
 	}
 	if minutes > 0 {
-		buf.WriteString(fmt.Sprintf("%.0fmin, ", minutes))
+		fmt.Fprintf(&buf, "%.0fmin, ", minutes)
 	}
 
 	var humanTime string
 	if seconds > 0 {
-		buf.WriteString(fmt.Sprintf("%.2fsec", seconds))
+		fmt.Fprintf(&buf, "%.2fsec", seconds)
 		humanTime = buf.String()
 	} else {
 		sbuf := buf.String()
