@@ -114,10 +114,11 @@ func WriteErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 
+	h := w.Header()
 	if contentEncoding != "" {
-		w.Header().Set("Content-Encoding", contentEncoding)
+		h.Set("Content-Encoding", contentEncoding)
 	}
-	w.Header().Set("Content-Type", contentType)
+	h.Set("Content-Type", contentType)
 	w.WriteHeader(httpErr.StatusCode)
 	w.Write(bodyEnc)
 }

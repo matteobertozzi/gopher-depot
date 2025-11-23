@@ -19,7 +19,6 @@ package tashkewey
 
 import (
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -48,15 +47,21 @@ func CorsMiddleware(config *CorsConfig) func(http.Handler) http.Handler {
 
 	allowedCredentials := strconv.FormatBool(config.AllowCredentials)
 
+	allowedOrigins := make(map[string]struct{}, len(config.AllowedOrigins))
+	for _, origin := range config.AllowedOrigins {
+		allowedOrigins[origin] = struct{}{}
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := strings.TrimSpace(r.Header.Get("Origin"))
-			allowed := slices.Contains(config.AllowedOrigins, origin)
+			origin := r.Header.Get("Origin")
+			_, allowed := allowedOrigins[origin]
 			if allowed {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Access-Control-Allow-Methods", allowedMethods)
-				w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
-				w.Header().Set("Access-Control-Allow-Credentials", allowedCredentials)
+				h := w.Header()
+				h.Set("Access-Control-Allow-Origin", origin)
+				h.Set("Access-Control-Allow-Methods", allowedMethods)
+				h.Set("Access-Control-Allow-Headers", allowedHeaders)
+				h.Set("Access-Control-Allow-Credentials", allowedCredentials)
 			}
 
 			if r.Method != http.MethodOptions {

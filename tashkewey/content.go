@@ -46,10 +46,11 @@ func WriteResponseBody(w http.ResponseWriter, r *http.Request, resp any) {
 		return
 	}
 
+	h := w.Header()
 	if contentEncoding != "" {
-		w.Header().Set("Content-Encoding", contentEncoding)
+		h.Set("Content-Encoding", contentEncoding)
 	}
-	w.Header().Set("Content-Type", contentType)
+	h.Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)
 	w.Write(bodyEnc)
 }
@@ -60,10 +61,11 @@ func WriteImage(w http.ResponseWriter, r *http.Request, imageType string, timest
 		return
 	}
 
-	w.Header().Set("Content-Type", imageType)
-	w.Header().Set("Last-Modified", timestamp.Format(http.TimeFormat))
-	w.Header().Set("ETag", eTag)
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	h := w.Header()
+	h.Set("Content-Type", imageType)
+	h.Set("Last-Modified", timestamp.Format(http.TimeFormat))
+	h.Set("ETag", eTag)
+	h.Set("Cache-Control", "public, max-age=86400")
 	w.WriteHeader(http.StatusOK)
 	w.Write(image)
 }
