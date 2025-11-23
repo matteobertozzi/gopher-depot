@@ -3,12 +3,12 @@ module github.com/matteobertozzi/gopher-depot
 go 1.24.0
 
 require (
+	github.com/duckdb/duckdb-go/v2 v2.5.2
 	github.com/fxamacker/cbor v1.5.1
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/klauspost/compress v1.18.1
-	github.com/marcboeker/go-duckdb/v2 v2.4.3
 	github.com/matteobertozzi/yajbe-data-format/golang/yajbe v0.0.0-20250813190538-982e2a63a611
 	github.com/mattn/go-sqlite3 v1.14.32
 	gopkg.in/yaml.v2 v2.4.0
@@ -24,13 +24,13 @@ require (
 	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.23 // indirect
 	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.23 // indirect
 	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.23 // indirect
+	github.com/duckdb/duckdb-go/arrowmapping v0.0.26 // indirect
+	github.com/duckdb/duckdb-go/mapping v0.0.25 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/flatbuffers v25.9.23+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/marcboeker/go-duckdb/arrowmapping v0.0.21 // indirect
-	github.com/marcboeker/go-duckdb/mapping v0.0.21 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
@@ -41,7 +41,7 @@ require (
 	golang.org/x/mod v0.30.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/telemetry v0.0.0-20251112162317-03ef243c208a // indirect
+	golang.org/x/telemetry v0.0.0-20251121192418-e4876590c019 // indirect
 	golang.org/x/tools v0.39.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 )
