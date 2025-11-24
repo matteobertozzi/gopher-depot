@@ -21,7 +21,14 @@ import (
 	"bufio"
 	"net"
 	"net/http"
+	"sync"
 )
+
+var hijackerResponseWriterPool = sync.Pool{
+	New: func() any {
+		return &hijackerResponseWriter{}
+	},
+}
 
 type hijackerResponseWriter struct {
 	http.ResponseWriter
@@ -41,8 +48,13 @@ func (hrw *hijackerResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
 func newHijackerResponseWriter(w http.ResponseWriter) *hijackerResponseWriter {
-	return &hijackerResponseWriter{
-		ResponseWriter: w,
-		statusCode:     200,
-	}
+	hrw := hijackerResponseWriterPool.Get().(*hijackerResponseWriter)
+	hrw.ResponseWriter = w
+	hrw.statusCode = 200
+	return hrw
+}
+
+func releaseHijackerResponseWriter(hrw *hijackerResponseWriter) {
+	hrw.ResponseWriter = nil
+	hijackerResponseWriterPool.Put(hrw)
 }
